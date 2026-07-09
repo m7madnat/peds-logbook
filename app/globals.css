@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html, body {
+  background-color: #0A121C;
+  color: #E9EEF3;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Visible keyboard focus everywhere, including custom controls */
+:focus-visible {
+  outline: 2px solid #34D399;
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+input, select, textarea, button {
+  font-size: 16px; /* prevents iOS zoom-on-focus */
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Clinical "instrument label" style: small, uppercase, tracked, muted */
+.field-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8CA0B3;
+}
+
+/* Thin scrollbars for the data-dense table / drawer views */
+.thin-scroll::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+.thin-scroll::-webkit-scrollbar-thumb {
+  background: #2E4258;
+  border-radius: 999px;
+}
+.thin-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+details > summary {
+  list-style: none;
+}
+details > summary::-webkit-details-marker {
+  display: none;
+}
+details[open] .details-chevron {
+  transform: rotate(180deg);
+}
+.details-chevron {
+  transition: transform 0.15s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
