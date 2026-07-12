@@ -38,27 +38,83 @@ const COLUMNS = [
   'date',
   'location',
   'service_type',
+  // Patient
   'patient_age_value',
   'patient_age_unit',
   'weight_kg',
+  'height_cm',
+  'gestational_age_weeks',
   'asa_class',
+  // Cardiac physiology / history
+  'cyanotic',
+  'physiology',
+  'previous_cardiac_surgery',
+  'previous_cardiac_surgery_detail',
+  // Diagnosis
   'diagnosis',
+  'associated_lesions',
+  // Procedure / role
   'procedure',
+  'role',
+  // Anesthesia type
+  'anesthesia_type',
+  'regional_block_type',
+  // Airway
   'airway_type',
   'airway_difficulty',
   'blade_type',
   'blade_size',
+  'intubation_attempts',
+  'video_laryngoscope_used',
+  'fiberoptic_used',
+  // Monitoring
+  'tee_used',
+  'cerebral_nirs_used',
+  'renal_nirs_used',
+  'eeg_used',
+  // Vascular access
   'arterial_line',
   'arterial_site',
+  'arterial_side',
   'central_line',
   'central_site',
-  'tee_used',
+  'central_side',
+  // CPB
   'cpb_used',
+  'cpb_duration_min',
   'cross_clamp_time_min',
-  'role',
+  'dhca_used',
+  'dhca_duration_min',
+  'selective_cerebral_perfusion_used',
+  'selective_cerebral_perfusion_duration_min',
+  'lowest_temperature_c',
+  // Intraoperative support
+  'vasoactive_meds',
+  // Separation from CPB
+  'separation_difficulty',
+  'separation_notes',
+  // Postoperative outcome
+  'destination',
+  'extubation_status',
+  'ecmo_status',
+  'ecmo_timing',
+  // Complications
   'complications',
+  'complication_flags',
+  // Fellowship learning
   'learning_point',
+  'anesthetic_challenges',
+  'key_learning_points',
+  'would_do_differently',
 ] as const;
+
+// Columns typed text[] in Postgres: default to an empty array rather than
+// null, since the column is NOT NULL with a '{}' default.
+const ARRAY_COLUMNS = new Set(['vasoactive_meds', 'complication_flags']);
+
+function defaultFor(column: string): unknown {
+  return ARRAY_COLUMNS.has(column) ? [] : null;
+}
 
 function assertNoIdentifiers(input: Record<string, unknown>): void {
   for (const key of FORBIDDEN_FIELDS) {
@@ -80,6 +136,11 @@ export async function listCases(filters: CaseFilters = {}): Promise<AnesthesiaCa
   if (filters.cpb === 'no') result = result.filter((r) => !r.cpb_used);
   if (filters.airwayDifficulty)
     result = result.filter((r) => r.airway_difficulty === filters.airwayDifficulty);
+  if (filters.physiology) result = result.filter((r) => r.physiology === filters.physiology);
+  if (filters.cyanotic === 'yes') result = result.filter((r) => r.cyanotic === true);
+  if (filters.cyanotic === 'no') result = result.filter((r) => r.cyanotic === false);
+  if (filters.ecmo === 'yes') result = result.filter((r) => r.ecmo_status !== 'No ECMO');
+  if (filters.ecmo === 'no') result = result.filter((r) => r.ecmo_status === 'No ECMO' || !r.ecmo_status);
   if (filters.ageGroup) {
     result = result.filter(
       (r) => ageGroupFor(ageInMonths(r.patient_age_value, r.patient_age_unit)) === filters.ageGroup
@@ -88,7 +149,17 @@ export async function listCases(filters: CaseFilters = {}): Promise<AnesthesiaCa
   if (filters.q) {
     const needle = filters.q.toLowerCase();
     result = result.filter((r) =>
-      [r.diagnosis, r.procedure, r.complications, r.learning_point]
+      [
+        r.diagnosis,
+        r.procedure,
+        r.associated_lesions,
+        r.complications,
+        r.learning_point,
+        r.anesthetic_challenges,
+        r.key_learning_points,
+        r.would_do_differently,
+        r.separation_notes,
+      ]
         .filter(Boolean)
         .some((f) => (f as string).toLowerCase().includes(needle))
     );
@@ -106,7 +177,7 @@ export async function createCase(input: CaseInput): Promise<AnesthesiaCase> {
   assertNoIdentifiers(input as unknown as Record<string, unknown>);
 
   const id = randomUUID();
-  const values = COLUMNS.map((c) => (input as Record<string, unknown>)[c] ?? null);
+  const values = COLUMNS.map((c) => (input as Record<string, unknown>)[c] ?? defaultFor(c));
   const placeholders = COLUMNS.map((_, i) => `$${i + 2}`).join(', ');
 
   const { rows } = await pool.query<AnesthesiaCase>(

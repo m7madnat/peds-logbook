@@ -10,6 +10,8 @@ function badgesFor(c: AnesthesiaCase) {
   if (c.tee_used) badges.push({ label: 'TEE', variant: 'mint' });
   if (c.arterial_line) badges.push({ label: 'A-line', variant: 'default' });
   if (c.central_line) badges.push({ label: 'CVL', variant: 'default' });
+  if (c.ecmo_status && c.ecmo_status !== 'No ECMO') badges.push({ label: c.ecmo_status, variant: 'amber' });
+  if (c.dhca_used) badges.push({ label: 'DHCA', variant: 'amber' });
   return badges;
 }
 

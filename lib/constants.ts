@@ -14,6 +14,8 @@ export const DIAGNOSES = [
   'Other',
 ] as const;
 
+// Existing procedures are kept as-is; the new fellowship-level procedures
+// are appended so nothing already logged changes meaning.
 export const PROCEDURES = [
   'Norwood',
   'Glenn',
@@ -22,22 +24,76 @@ export const PROCEDURES = [
   'VSD repair',
   'Cath procedure',
   'Transplant',
+  'Arterial Switch Operation (ASO)',
+  'Ross Procedure',
+  'Arch reconstruction',
+  'Coarctation repair',
+  'AV canal repair',
+  'ASD/VSD repair',
   'Other',
 ] as const;
 
 export const AIRWAY_TYPES = ['ETT', 'LMA', 'Mask', 'Other'] as const;
 
-export const AIRWAY_DIFFICULTIES = ['Easy', 'Grade 2', 'Difficult'] as const;
+export const AIRWAY_DIFFICULTIES = ['Easy', 'Moderate', 'Difficult'] as const;
 
 export const BLADE_TYPES = ['Miller', 'Mac', 'Other'] as const;
 
 export const ARTERIAL_SITES = ['Radial', 'Femoral', 'Other'] as const;
-
-export const CENTRAL_SITES = ['IJ', 'Femoral', 'Subclavian', 'Other'] as const;
+export const CENTRAL_SITES = ['Internal jugular', 'Subclavian', 'Femoral', 'Other'] as const;
+export const LINE_SIDES = ['Right', 'Left'] as const;
 
 export const ROLES = ['Observer', 'Assisted', 'Primary', 'Supervised Independent'] as const;
 
 export const LOCATIONS_DEFAULT = 'SickKids';
+
+// --- Cardiac complexity -----------------------------------------------
+export const PHYSIOLOGIES = ['Biventricular', 'Single ventricle'] as const;
+export const PREVIOUS_CARDIAC_SURGERY = ['None', 'Previous repair', 'Previous palliation', 'Other'] as const;
+
+// --- Anesthesia type -----------------------------------------------
+export const ANESTHESIA_TYPES = [
+  'General Anesthesia',
+  'Regional Anesthesia',
+  'General + Regional Anesthesia',
+] as const;
+export const REGIONAL_BLOCK_TYPES = [
+  'Caudal',
+  'Epidural',
+  'Spinal',
+  'TAP block',
+  'Rectus sheath block',
+  'Peripheral nerve block',
+  'Other',
+] as const;
+
+// --- CPB / bypass -----------------------------------------------
+export const SEPARATION_DIFFICULTIES = ['Easy', 'Moderate', 'Difficult'] as const;
+
+export const VASOACTIVE_MEDS = [
+  'Epinephrine',
+  'Norepinephrine',
+  'Milrinone',
+  'Vasopressin',
+  'Phenylephrine',
+  'Calcium infusion',
+] as const;
+
+// --- Postoperative outcome -----------------------------------------------
+export const DESTINATIONS = ['PICU', 'NICU', 'Cardiac ICU', 'Ward'] as const;
+export const EXTUBATION_STATUSES = ['Extubated in OR', 'Remained intubated'] as const;
+export const ECMO_STATUSES = ['No ECMO', 'VA ECMO', 'VV ECMO'] as const;
+export const ECMO_TIMINGS = ['OR', 'ICU'] as const;
+
+export const COMPLICATION_FLAGS = [
+  'Low cardiac output syndrome',
+  'Arrhythmia',
+  'Bleeding concern',
+  'Pulmonary hypertension crisis',
+  'RV dysfunction',
+  'Difficult ventilation',
+  'Other',
+] as const;
 
 // Quick age-category presets for the fast Add Case form. Each maps to a
 // representative (value, unit) pair stored in the existing age fields -
@@ -57,19 +113,6 @@ export function matchAgeCategory(
   const found = AGE_CATEGORIES.find((c) => c.value === value && c.unit === unit);
   return found ? found.key : null;
 }
-
-// Common quick-select complication chips. "Other" reveals free text; the
-// underlying field is still the same plain-text `complications` column.
-export const COMPLICATION_CHIPS = [
-  'None',
-  'Hypotension',
-  'Arrhythmia',
-  'Difficult CPB wean',
-  'Bleeding',
-  'Airway event',
-  'Bronchospasm',
-  'Other',
-] as const;
 
 // Buckets used by the "age group" filter on the case list.
 // Boundaries expressed in months for consistent comparison.

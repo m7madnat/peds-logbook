@@ -4,7 +4,7 @@ import { memo, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Card, CardContent, Skeleton } from '@/components/ui';
 import DashboardFilters from '@/components/DashboardFilters';
-import { DIAGNOSES, PROCEDURES, AIRWAY_DIFFICULTIES, ROLES, isNeonatal } from '@/lib/constants';
+import { DIAGNOSES, PROCEDURES, AIRWAY_DIFFICULTIES, ROLES, COMPLICATION_FLAGS, VASOACTIVE_MEDS, isNeonatal } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import type { AnesthesiaCase } from '@/lib/types';
 
@@ -35,6 +35,9 @@ export interface DashboardFilterState {
   arterial: boolean;
   central: boolean;
   neonatal: boolean;
+  ecmo: boolean;
+  singleVentricle: boolean;
+  cyanotic: boolean;
 }
 
 const DEFAULT_FILTERS: DashboardFilterState = {
@@ -46,6 +49,9 @@ const DEFAULT_FILTERS: DashboardFilterState = {
   arterial: false,
   central: false,
   neonatal: false,
+  ecmo: false,
+  singleVentricle: false,
+  cyanotic: false,
 };
 
 function withinDateRange(dateStr: string, range: DashboardFilterState['dateRange']): boolean {
@@ -69,6 +75,9 @@ function applyFilters(cases: AnesthesiaCase[], f: DashboardFilterState): Anesthe
     if (f.arterial && !c.arterial_line) return false;
     if (f.central && !c.central_line) return false;
     if (f.neonatal && !isNeonatal(c.patient_age_value, c.patient_age_unit)) return false;
+    if (f.ecmo && (!c.ecmo_status || c.ecmo_status === 'No ECMO')) return false;
+    if (f.singleVentricle && c.physiology !== 'Single ventricle') return false;
+    if (f.cyanotic && !c.cyanotic) return false;
     return true;
   });
 }
@@ -99,6 +108,21 @@ function distribution(cases: AnesthesiaCase[], key: keyof AnesthesiaCase, catego
   const rows = categories.map((cat) => ({ name: cat, count: counts.get(cat) ?? 0 }));
   if (other > 0) rows.push({ name: 'Other', count: other });
   return rows;
+}
+
+// For array-valued columns (a case can have multiple complications, or
+// multiple vasoactive meds) - counts how many cases include each option,
+// not how many times it appears (a case is only counted once per flag).
+function arrayDistribution(cases: AnesthesiaCase[], key: 'complication_flags' | 'vasoactive_meds', categories: readonly string[]) {
+  const counts = new Map<string, number>();
+  for (const cat of categories) counts.set(cat, 0);
+  for (const c of cases) {
+    const values = (c[key] as string[] | null) ?? [];
+    for (const v of values) {
+      if (counts.has(v)) counts.set(v, (counts.get(v) ?? 0) + 1);
+    }
+  }
+  return categories.map((cat) => ({ name: cat, count: counts.get(cat) ?? 0 })).filter((r) => r.count > 0);
 }
 
 const KpiCard = memo(function KpiCard({
@@ -146,6 +170,9 @@ function Dashboard({ cases }: { cases: AnesthesiaCase[] }) {
         filters.arterial,
         filters.central,
         filters.neonatal,
+        filters.ecmo,
+        filters.singleVentricle,
+        filters.cyanotic,
       ].filter(Boolean).length,
     [filters]
   );
@@ -168,6 +195,15 @@ function Dashboard({ cases }: { cases: AnesthesiaCase[] }) {
   function toggleCentral() {
     setFilters((f) => ({ ...f, central: !f.central }));
   }
+  function toggleEcmo() {
+    setFilters((f) => ({ ...f, ecmo: !f.ecmo }));
+  }
+  function toggleSingleVentricle() {
+    setFilters((f) => ({ ...f, singleVentricle: !f.singleVentricle }));
+  }
+  function toggleCyanotic() {
+    setFilters((f) => ({ ...f, cyanotic: !f.cyanotic }));
+  }
 
   const stats = useMemo(() => {
     const total = filtered.length;
@@ -177,7 +213,11 @@ function Dashboard({ cases }: { cases: AnesthesiaCase[] }) {
     const tee = filtered.filter((c) => c.tee_used).length;
     const aline = filtered.filter((c) => c.arterial_line).length;
     const cline = filtered.filter((c) => c.central_line).length;
-    return { total, cardiac, cpb, neonatal, tee, aline, cline };
+    const ecmo = filtered.filter((c) => c.ecmo_status && c.ecmo_status !== 'No ECMO').length;
+    const cyanotic = filtered.filter((c) => c.cyanotic).length;
+    const singleVentricle = filtered.filter((c) => c.physiology === 'Single ventricle').length;
+    const dhca = filtered.filter((c) => c.dhca_used).length;
+    return { total, cardiac, cpb, neonatal, tee, aline, cline, ecmo, cyanotic, singleVentricle, dhca };
   }, [filtered]);
 
   const chartData = useMemo(
@@ -187,6 +227,8 @@ function Dashboard({ cases }: { cases: AnesthesiaCase[] }) {
       procedureDist: distribution(filtered, 'procedure', PROCEDURES),
       airwayDist: distribution(filtered, 'airway_difficulty', AIRWAY_DIFFICULTIES),
       roleDist: distribution(filtered, 'role', ROLES),
+      complicationDist: arrayDistribution(filtered, 'complication_flags', COMPLICATION_FLAGS),
+      vasoactiveDist: arrayDistribution(filtered, 'vasoactive_meds', VASOACTIVE_MEDS),
     }),
     [filtered]
   );
@@ -214,6 +256,10 @@ function Dashboard({ cases }: { cases: AnesthesiaCase[] }) {
         <KpiCard label="TEEs Performed" value={stats.tee} active={filters.tee} onClick={toggleTee} />
         <KpiCard label="Arterial Lines" value={stats.aline} active={filters.arterial} onClick={toggleArterial} />
         <KpiCard label="Central Lines" value={stats.cline} active={filters.central} onClick={toggleCentral} />
+        <KpiCard label="ECMO Cases" value={stats.ecmo} active={filters.ecmo} onClick={toggleEcmo} />
+        <KpiCard label="Single Ventricle" value={stats.singleVentricle} active={filters.singleVentricle} onClick={toggleSingleVentricle} />
+        <KpiCard label="Cyanotic Cases" value={stats.cyanotic} active={filters.cyanotic} onClick={toggleCyanotic} />
+        <KpiCard label="DHCA Cases" value={stats.dhca} />
       </div>
 
       {stats.total === 0 ? (
@@ -229,6 +275,8 @@ function Dashboard({ cases }: { cases: AnesthesiaCase[] }) {
           procedureDist={chartData.procedureDist}
           airwayDist={chartData.airwayDist}
           roleDist={chartData.roleDist}
+          complicationDist={chartData.complicationDist}
+          vasoactiveDist={chartData.vasoactiveDist}
           cpb={stats.cpb}
           total={stats.total}
         />

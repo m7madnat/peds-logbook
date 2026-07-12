@@ -13,6 +13,9 @@ below if you don't have one yet.
    passphrase for `APP_PASSWORD`, and a random `AUTH_SECRET`
    (`openssl rand -hex 32`).
 2. Run `db/schema.sql` once against your database (see below for how).
+   **Already have a database from before the fellowship-level expansion?**
+   Run `db/migration_002_fellowship_expansion.sql` instead — it only adds
+   the new columns and does not touch any case you've already logged.
 3. `npm install`
 4. `npm run dev`, then open `http://localhost:3000`.
 

@@ -68,6 +68,9 @@ export default function CasesPage() {
     if (filters.cpb) params.set('cpb', filters.cpb);
     if (filters.ageGroup) params.set('ageGroup', filters.ageGroup);
     if (filters.airwayDifficulty) params.set('airwayDifficulty', filters.airwayDifficulty);
+    if (filters.physiology) params.set('physiology', filters.physiology);
+    if (filters.cyanotic) params.set('cyanotic', filters.cyanotic);
+    if (filters.ecmo) params.set('ecmo', filters.ecmo);
 
     setLoading(true);
     setError(null);

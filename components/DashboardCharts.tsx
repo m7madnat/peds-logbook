@@ -51,6 +51,8 @@ function DashboardCharts({
   procedureDist,
   airwayDist,
   roleDist,
+  complicationDist,
+  vasoactiveDist,
   cpb,
   total,
 }: {
@@ -59,6 +61,8 @@ function DashboardCharts({
   procedureDist: DistRow[];
   airwayDist: DistRow[];
   roleDist: DistRow[];
+  complicationDist: DistRow[];
+  vasoactiveDist: DistRow[];
   cpb: number;
   total: number;
 }) {
@@ -169,6 +173,38 @@ function DashboardCharts({
           </ResponsiveContainer>
         </div>
       </ChartCard>
+
+      {complicationDist.length > 0 && (
+        <ChartCard title="Complications Frequency">
+          <div className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={complicationDist} layout="vertical" margin={{ left: 8 }}>
+                <CartesianGrid stroke="#243449" strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" stroke="#8CA0B3" fontSize={11} allowDecimals={false} tickLine={false} />
+                <YAxis type="category" dataKey="name" stroke="#8CA0B3" fontSize={10} tickLine={false} width={130} />
+                <Tooltip {...tooltipStyle} />
+                <Bar dataKey="count" radius={[0, 4, 4, 0]} fill="#F0555B" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </ChartCard>
+      )}
+
+      {vasoactiveDist.length > 0 && (
+        <ChartCard title="Vasoactive Medications Used">
+          <div className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={vasoactiveDist} layout="vertical" margin={{ left: 8 }}>
+                <CartesianGrid stroke="#243449" strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" stroke="#8CA0B3" fontSize={11} allowDecimals={false} tickLine={false} />
+                <YAxis type="category" dataKey="name" stroke="#8CA0B3" fontSize={10} tickLine={false} width={110} />
+                <Tooltip {...tooltipStyle} />
+                <Bar dataKey="count" radius={[0, 4, 4, 0]} fill="#F2A93B" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </ChartCard>
+      )}
     </div>
   );
 }

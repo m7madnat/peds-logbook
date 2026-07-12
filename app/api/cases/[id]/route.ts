@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCase, updateCase, deleteCase } from '@/lib/db';
+import { validateCaseInput } from '@/lib/validation';
 import type { CaseInput } from '@/lib/types';
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
@@ -10,6 +11,12 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   const body = (await req.json()) as Partial<CaseInput>;
+
+  const validationError = validateCaseInput(body);
+  if (validationError) {
+    return NextResponse.json({ error: validationError }, { status: 400 });
+  }
+
   try {
     const updated = await updateCase(params.id, body);
     if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 });

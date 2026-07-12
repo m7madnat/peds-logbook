@@ -6,15 +6,27 @@ import {
   PROCEDURES,
   AIRWAY_TYPES,
   AIRWAY_DIFFICULTIES,
+  BLADE_TYPES,
   ARTERIAL_SITES,
   CENTRAL_SITES,
+  LINE_SIDES,
   SERVICE_TYPES,
   ROLES,
   ASA_CLASSES,
   AGE_UNITS,
   AGE_CATEGORIES,
-  COMPLICATION_CHIPS,
   LOCATIONS_DEFAULT,
+  PHYSIOLOGIES,
+  PREVIOUS_CARDIAC_SURGERY,
+  ANESTHESIA_TYPES,
+  REGIONAL_BLOCK_TYPES,
+  SEPARATION_DIFFICULTIES,
+  VASOACTIVE_MEDS,
+  DESTINATIONS,
+  EXTUBATION_STATUSES,
+  ECMO_STATUSES,
+  ECMO_TIMINGS,
+  COMPLICATION_FLAGS,
   matchAgeCategory,
 } from '@/lib/constants';
 import type { AnesthesiaCase, CaseInput } from '@/lib/types';
@@ -27,14 +39,14 @@ import {
   NumberInput,
   Toggle,
   SegmentedGroup,
+  CheckboxGroup,
   Button,
   Toast,
   Collapsible,
 } from '@/components/ui';
-
 import { useToast } from '@/lib/useToast';
 
-const DRAFT_KEY = 'peds_logbook_add_case_draft_v1';
+const DRAFT_KEY = 'peds_logbook_add_case_draft_v2';
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -45,26 +57,74 @@ function emptyCase(): CaseInput {
     date: todayISO(),
     location: LOCATIONS_DEFAULT,
     service_type: 'Cardiac',
+
     patient_age_value: null,
     patient_age_unit: null,
     weight_kg: null,
+    height_cm: null,
+    gestational_age_weeks: null,
     asa_class: null,
+
+    cyanotic: null,
+    physiology: null,
+    previous_cardiac_surgery: null,
+    previous_cardiac_surgery_detail: null,
+
     diagnosis: null,
+    associated_lesions: null,
+
     procedure: null,
+    role: 'Assisted',
+
+    anesthesia_type: 'General Anesthesia',
+    regional_block_type: null,
+
     airway_type: null,
     airway_difficulty: null,
     blade_type: null,
     blade_size: null,
+    intubation_attempts: null,
+    video_laryngoscope_used: false,
+    fiberoptic_used: false,
+
+    tee_used: false,
+    cerebral_nirs_used: false,
+    renal_nirs_used: false,
+    eeg_used: false,
+
     arterial_line: false,
     arterial_site: null,
+    arterial_side: null,
     central_line: false,
     central_site: null,
-    tee_used: false,
+    central_side: null,
+
     cpb_used: false,
+    cpb_duration_min: null,
     cross_clamp_time_min: null,
-    role: 'Assisted',
+    dhca_used: false,
+    dhca_duration_min: null,
+    selective_cerebral_perfusion_used: false,
+    selective_cerebral_perfusion_duration_min: null,
+    lowest_temperature_c: null,
+
+    vasoactive_meds: [],
+
+    separation_difficulty: null,
+    separation_notes: null,
+
+    destination: null,
+    extubation_status: null,
+    ecmo_status: 'No ECMO',
+    ecmo_timing: null,
+
     complications: null,
+    complication_flags: [],
+
     learning_point: null,
+    anesthetic_challenges: null,
+    key_learning_points: null,
+    would_do_differently: null,
   };
 }
 
@@ -72,8 +132,6 @@ interface DraftShape {
   form: CaseInput;
   diagnosisOther: string;
   procedureOther: string;
-  complicationChips: string[];
-  otherComplicationText: string;
 }
 
 // Typical defaults per pathway - tap once, confirm/adjust age+weight, save.
@@ -84,12 +142,15 @@ const TEMPLATES: Record<string, { ageCategory: string; overrides: Partial<CaseIn
       service_type: 'Cardiac',
       diagnosis: 'HLHS',
       procedure: 'Norwood',
+      physiology: 'Single ventricle',
+      cyanotic: true,
+      anesthesia_type: 'General Anesthesia',
       airway_type: 'ETT',
-      airway_difficulty: 'Grade 2',
+      airway_difficulty: 'Moderate',
       arterial_line: true,
       arterial_site: 'Femoral',
       central_line: true,
-      central_site: 'IJ',
+      central_site: 'Internal jugular',
       tee_used: true,
       cpb_used: true,
     },
@@ -100,12 +161,16 @@ const TEMPLATES: Record<string, { ageCategory: string; overrides: Partial<CaseIn
       service_type: 'Cardiac',
       diagnosis: 'HLHS',
       procedure: 'Glenn',
+      physiology: 'Single ventricle',
+      cyanotic: true,
+      previous_cardiac_surgery: 'Previous palliation',
+      anesthesia_type: 'General Anesthesia',
       airway_type: 'ETT',
       airway_difficulty: 'Easy',
       arterial_line: true,
       arterial_site: 'Radial',
       central_line: true,
-      central_site: 'IJ',
+      central_site: 'Internal jugular',
       tee_used: true,
       cpb_used: true,
     },
@@ -116,12 +181,16 @@ const TEMPLATES: Record<string, { ageCategory: string; overrides: Partial<CaseIn
       service_type: 'Cardiac',
       diagnosis: 'Fontan physiology',
       procedure: 'Fontan',
+      physiology: 'Single ventricle',
+      cyanotic: true,
+      previous_cardiac_surgery: 'Previous palliation',
+      anesthesia_type: 'General Anesthesia',
       airway_type: 'ETT',
       airway_difficulty: 'Easy',
       arterial_line: true,
       arterial_site: 'Radial',
       central_line: true,
-      central_site: 'IJ',
+      central_site: 'Internal jugular',
       tee_used: true,
       cpb_used: true,
     },
@@ -132,6 +201,9 @@ const TEMPLATES: Record<string, { ageCategory: string; overrides: Partial<CaseIn
       service_type: 'Cardiac',
       diagnosis: 'TOF',
       procedure: 'TOF repair',
+      physiology: 'Biventricular',
+      cyanotic: true,
+      anesthesia_type: 'General Anesthesia',
       airway_type: 'ETT',
       airway_difficulty: 'Easy',
       arterial_line: true,
@@ -163,12 +235,16 @@ function SectionShell({
   );
 }
 
+function SubHeading({ children }: { children: React.ReactNode }) {
+  return <p className="field-label pt-1">{children}</p>;
+}
+
 export default function AddCaseForm() {
   const [form, setForm] = useState<CaseInput>(emptyCase());
   const [diagnosisOther, setDiagnosisOther] = useState('');
   const [procedureOther, setProcedureOther] = useState('');
-  const [complicationChips, setComplicationChips] = useState<string[]>([]);
-  const [otherComplicationText, setOtherComplicationText] = useState('');
+  const [previousSurgeryOther, setPreviousSurgeryOther] = useState('');
+  const [complicationOther, setComplicationOther] = useState('');
   const [showExactAge, setShowExactAge] = useState(false);
   const [showSessionDefaults, setShowSessionDefaults] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -191,12 +267,13 @@ export default function AddCaseForm() {
       const raw = window.localStorage.getItem(DRAFT_KEY);
       if (raw) {
         const draft = JSON.parse(raw) as DraftShape;
-        setForm(draft.form);
+        setForm({ ...emptyCase(), ...draft.form });
         setDiagnosisOther(draft.diagnosisOther ?? '');
         setProcedureOther(draft.procedureOther ?? '');
-        setComplicationChips(draft.complicationChips ?? []);
-        setOtherComplicationText(draft.otherComplicationText ?? '');
-        if (draft.form.patient_age_value != null && !matchAgeCategory(draft.form.patient_age_value, draft.form.patient_age_unit)) {
+        if (
+          draft.form.patient_age_value != null &&
+          !matchAgeCategory(draft.form.patient_age_value, draft.form.patient_age_unit)
+        ) {
           setShowExactAge(true);
         }
       }
@@ -211,7 +288,7 @@ export default function AddCaseForm() {
   useEffect(() => {
     if (!draftLoaded.current) return;
     const t = setTimeout(() => {
-      const draft: DraftShape = { form, diagnosisOther, procedureOther, complicationChips, otherComplicationText };
+      const draft: DraftShape = { form, diagnosisOther, procedureOther };
       try {
         window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
       } catch {
@@ -219,7 +296,7 @@ export default function AddCaseForm() {
       }
     }, 300);
     return () => clearTimeout(t);
-  }, [form, diagnosisOther, procedureOther, complicationChips, otherComplicationText]);
+  }, [form, diagnosisOther, procedureOther]);
 
   function set<K extends keyof CaseInput>(key: K, value: CaseInput[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -241,28 +318,6 @@ export default function AddCaseForm() {
     set('patient_age_unit', cat.unit);
     setShowExactAge(false);
     focusSoon(weightRef);
-  }
-
-  function toggleComplicationChip(chip: string) {
-    if (chip === 'None') {
-      setComplicationChips([]);
-      setOtherComplicationText('');
-      set('complications', 'None');
-      return;
-    }
-    if (form.complications === 'None') set('complications', null);
-    setComplicationChips((chips) => {
-      const next = chips.includes(chip) ? chips.filter((c) => c !== chip) : [...chips, chip];
-      const combined = [...next, otherComplicationText].filter(Boolean).join(', ');
-      set('complications', combined || null);
-      return next;
-    });
-  }
-
-  function updateOtherComplication(text: string) {
-    setOtherComplicationText(text);
-    const combined = [...complicationChips, text].filter(Boolean).join(', ');
-    set('complications', combined || null);
   }
 
   function applyTemplate(name: string) {
@@ -293,35 +348,20 @@ export default function AddCaseForm() {
         setError('No previous case to duplicate yet.');
         return;
       }
+      const { id, case_number, created_at, updated_at, ...rest } = last;
       setForm({
+        ...rest,
         date: todayISO(),
-        location: last.location,
-        service_type: last.service_type,
-        patient_age_value: last.patient_age_value,
-        patient_age_unit: last.patient_age_unit,
-        weight_kg: last.weight_kg,
-        asa_class: last.asa_class,
-        diagnosis: last.diagnosis,
-        procedure: last.procedure,
-        airway_type: last.airway_type,
-        airway_difficulty: last.airway_difficulty,
-        blade_type: last.blade_type,
-        blade_size: last.blade_size,
-        arterial_line: last.arterial_line,
-        arterial_site: last.arterial_site,
-        central_line: last.central_line,
-        central_site: last.central_site,
-        tee_used: last.tee_used,
-        cpb_used: last.cpb_used,
-        cross_clamp_time_min: last.cross_clamp_time_min,
-        role: last.role,
         complications: null,
+        complication_flags: [],
+        separation_notes: null,
         learning_point: null,
+        anesthetic_challenges: null,
+        key_learning_points: null,
+        would_do_differently: null,
       });
       setDiagnosisOther(!DIAGNOSES.includes(last.diagnosis as any) ? last.diagnosis ?? '' : '');
       setProcedureOther(!PROCEDURES.includes(last.procedure as any) ? last.procedure ?? '' : '');
-      setComplicationChips([]);
-      setOtherComplicationText('');
       if (!matchAgeCategory(last.patient_age_value, last.patient_age_unit)) setShowExactAge(true);
       show(`Duplicated case #${last.case_number} — outcome cleared`);
     } catch {
@@ -335,8 +375,8 @@ export default function AddCaseForm() {
     setForm(emptyCase());
     setDiagnosisOther('');
     setProcedureOther('');
-    setComplicationChips([]);
-    setOtherComplicationText('');
+    setPreviousSurgeryOther('');
+    setComplicationOther('');
     setShowExactAge(false);
     setFormKey((k) => k + 1); // remounts sections back to their default open/closed state
     try {
@@ -356,6 +396,14 @@ export default function AddCaseForm() {
       ...form,
       diagnosis: form.diagnosis === 'Other' ? diagnosisOther || 'Other' : form.diagnosis,
       procedure: form.procedure === 'Other' ? procedureOther || 'Other' : form.procedure,
+      previous_cardiac_surgery_detail:
+        form.previous_cardiac_surgery === 'Other'
+          ? previousSurgeryOther || form.previous_cardiac_surgery_detail
+          : form.previous_cardiac_surgery_detail,
+      complications:
+        form.complication_flags.includes('Other') && complicationOther
+          ? [form.complications, `Other: ${complicationOther}`].filter(Boolean).join(' — ')
+          : form.complications,
     };
 
     const res = await fetch('/api/cases', {
@@ -374,6 +422,9 @@ export default function AddCaseForm() {
     show('Case saved');
     resetForNextCase();
   }
+
+  const showRegionalBlock = form.anesthesia_type !== 'General Anesthesia';
+  const showEcmoTiming = form.ecmo_status !== 'No ECMO';
 
   return (
     <>
@@ -445,19 +496,9 @@ export default function AddCaseForm() {
                   options={SERVICE_TYPES}
                 />
               </Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Your role">
-                  <Select value={form.role} onChange={(v) => set('role', v as CaseInput['role'])} options={ROLES} />
-                </Field>
-                <Field label="ASA class">
-                  <Select
-                    value={form.asa_class}
-                    onChange={(v) => set('asa_class', v as CaseInput['asa_class'])}
-                    options={ASA_CLASSES}
-                    placeholder="Select"
-                  />
-                </Field>
-              </div>
+              <Field label="Your role">
+                <Select value={form.role} onChange={(v) => set('role', v as CaseInput['role'])} options={ROLES} />
+              </Field>
             </div>
           )}
         </div>
@@ -478,6 +519,14 @@ export default function AddCaseForm() {
             {form.diagnosis === 'Other' && (
               <TextInput value={diagnosisOther} onChange={setDiagnosisOther} placeholder="Describe diagnosis" />
             )}
+          </Field>
+
+          <Field label="Associated lesions (optional)">
+            <TextInput
+              value={form.associated_lesions}
+              onChange={(v) => set('associated_lesions', v)}
+              placeholder="e.g. PDA, secundum ASD"
+            />
           </Field>
 
           <Field label="Procedure">
@@ -530,42 +579,158 @@ export default function AddCaseForm() {
                   value={form.patient_age_unit}
                   onChange={(v) => set('patient_age_unit', v as CaseInput['patient_age_unit'])}
                   options={AGE_UNITS}
+                  columns={2}
                 />
               </div>
             )}
           </Field>
 
-          <Field label="Weight (kg) — optional">
-            <NumberInput
-              ref={weightRef}
-              value={form.weight_kg}
-              onChange={(v) => set('weight_kg', v)}
-              placeholder="e.g. 16.5"
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Weight (kg)">
+              <NumberInput
+                ref={weightRef}
+                value={form.weight_kg}
+                onChange={(v) => set('weight_kg', v)}
+                placeholder="e.g. 16.5"
+              />
+            </Field>
+            <Field label="Height (cm) — optional">
+              <NumberInput value={form.height_cm} onChange={(v) => set('height_cm', v)} placeholder="e.g. 100" />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Gestational age (wk) — neonates">
+              <NumberInput
+                value={form.gestational_age_weeks}
+                onChange={(v) => set('gestational_age_weeks', v)}
+                placeholder="e.g. 38"
+              />
+            </Field>
+            <Field label="ASA status">
+              <Select
+                value={form.asa_class}
+                onChange={(v) => set('asa_class', v as CaseInput['asa_class'])}
+                options={ASA_CLASSES}
+                placeholder="Select"
+              />
+            </Field>
+          </div>
+
+          <SubHeading>Cardiac physiology</SubHeading>
+          <Field label="Cyanotic">
+            <SegmentedGroup
+              value={form.cyanotic == null ? null : form.cyanotic ? 'Yes' : 'No'}
+              onChange={(v) => set('cyanotic', v === 'Yes')}
+              options={['Yes', 'No']}
+              columns={2}
             />
+          </Field>
+          <Field label="Physiology">
+            <SegmentedGroup
+              value={form.physiology}
+              onChange={(v) => set('physiology', v as CaseInput['physiology'])}
+              options={PHYSIOLOGIES}
+              columns={2}
+            />
+          </Field>
+          <Field label="Previous cardiac surgery">
+            <SegmentedGroup
+              value={form.previous_cardiac_surgery}
+              onChange={(v) => set('previous_cardiac_surgery', v as CaseInput['previous_cardiac_surgery'])}
+              options={PREVIOUS_CARDIAC_SURGERY}
+              columns={2}
+            />
+            {form.previous_cardiac_surgery === 'Other' && (
+              <TextInput
+                value={previousSurgeryOther}
+                onChange={setPreviousSurgeryOther}
+                placeholder="Describe prior surgery"
+              />
+            )}
           </Field>
         </SectionShell>
 
         {/* 2. Anesthesia */}
         <SectionShell step={2} title="Anesthesia" defaultOpen={false} formKey={formKey}>
-          <Field label="Airway type">
+          <Field label="Anesthesia type">
             <SegmentedGroup
-              value={form.airway_type}
-              onChange={(v) => set('airway_type', v as CaseInput['airway_type'])}
-              options={AIRWAY_TYPES}
+              value={form.anesthesia_type}
+              onChange={(v) => set('anesthesia_type', v as CaseInput['anesthesia_type'])}
+              options={ANESTHESIA_TYPES}
+              columns={3}
             />
           </Field>
-          <Field label="Airway difficulty">
-            <SegmentedGroup
-              value={form.airway_difficulty}
-              onChange={(v) => set('airway_difficulty', v as CaseInput['airway_difficulty'])}
-              options={AIRWAY_DIFFICULTIES}
-            />
-          </Field>
+          {showRegionalBlock && (
+            <Field label="Regional block type">
+              <Select
+                value={form.regional_block_type}
+                onChange={(v) => set('regional_block_type', v as CaseInput['regional_block_type'])}
+                options={REGIONAL_BLOCK_TYPES}
+                placeholder="Select"
+              />
+            </Field>
+          )}
 
-          <div className="h-px bg-line" />
+          <SubHeading>Airway</SubHeading>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Airway type">
+              <SegmentedGroup
+                value={form.airway_type}
+                onChange={(v) => set('airway_type', v as CaseInput['airway_type'])}
+                options={AIRWAY_TYPES}
+              />
+            </Field>
+            <Field label="Difficulty">
+              <SegmentedGroup
+                value={form.airway_difficulty}
+                onChange={(v) => set('airway_difficulty', v as CaseInput['airway_difficulty'])}
+                options={AIRWAY_DIFFICULTIES}
+              />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Blade type">
+              <Select
+                value={form.blade_type}
+                onChange={(v) => set('blade_type', v as CaseInput['blade_type'])}
+                options={BLADE_TYPES}
+                placeholder="Select"
+              />
+            </Field>
+            <Field label="Blade size">
+              <TextInput value={form.blade_size} onChange={(v) => set('blade_size', v)} placeholder='e.g. "1"' />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Intubation attempts">
+              <NumberInput
+                value={form.intubation_attempts}
+                onChange={(v) => set('intubation_attempts', v)}
+                placeholder="e.g. 1"
+              />
+            </Field>
+            <div className="flex flex-col justify-end gap-2">
+              <Toggle
+                checked={form.video_laryngoscope_used}
+                onChange={(v) => set('video_laryngoscope_used', v)}
+                label="Video laryngoscope"
+              />
+            </div>
+          </div>
+          <Toggle checked={form.fiberoptic_used} onChange={(v) => set('fiberoptic_used', v)} label="Fiberoptic" />
 
-          <Toggle checked={form.cpb_used} onChange={(v) => set('cpb_used', v)} label="CPB used" />
+          <SubHeading>Monitoring</SubHeading>
+          <Toggle checked={form.tee_used} onChange={(v) => set('tee_used', v)} label="TEE used" />
+          <Toggle
+            checked={form.cerebral_nirs_used}
+            onChange={(v) => set('cerebral_nirs_used', v)}
+            label="Cerebral NIRS"
+          />
+          <Toggle checked={form.renal_nirs_used} onChange={(v) => set('renal_nirs_used', v)} label="Renal NIRS" />
+          <Toggle checked={form.eeg_used} onChange={(v) => set('eeg_used', v)} label="EEG" />
 
+          <SubHeading>Vascular access</SubHeading>
           <Toggle
             checked={form.arterial_line}
             onChange={(v) => {
@@ -575,15 +740,25 @@ export default function AddCaseForm() {
             label="Arterial line placed"
           />
           {form.arterial_line && (
-            <Field label="Arterial site (optional)">
-              <Select
-                ref={arterialSiteRef}
-                value={form.arterial_site}
-                onChange={(v) => set('arterial_site', v as CaseInput['arterial_site'])}
-                options={ARTERIAL_SITES}
-                placeholder="Select"
-              />
-            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Site">
+                <Select
+                  ref={arterialSiteRef}
+                  value={form.arterial_site}
+                  onChange={(v) => set('arterial_site', v as CaseInput['arterial_site'])}
+                  options={ARTERIAL_SITES}
+                  placeholder="Select"
+                />
+              </Field>
+              <Field label="Side">
+                <SegmentedGroup
+                  value={form.arterial_side}
+                  onChange={(v) => set('arterial_side', v as CaseInput['arterial_side'])}
+                  options={LINE_SIDES}
+                  columns={2}
+                />
+              </Field>
+            </div>
           )}
 
           <Toggle
@@ -595,57 +770,187 @@ export default function AddCaseForm() {
             label="Central line placed"
           />
           {form.central_line && (
-            <Field label="Central site (optional)">
-              <Select
-                ref={centralSiteRef}
-                value={form.central_site}
-                onChange={(v) => set('central_site', v as CaseInput['central_site'])}
-                options={CENTRAL_SITES}
-                placeholder="Select"
-              />
-            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Site">
+                <Select
+                  ref={centralSiteRef}
+                  value={form.central_site}
+                  onChange={(v) => set('central_site', v as CaseInput['central_site'])}
+                  options={CENTRAL_SITES}
+                  placeholder="Select"
+                />
+              </Field>
+              <Field label="Side">
+                <SegmentedGroup
+                  value={form.central_side}
+                  onChange={(v) => set('central_side', v as CaseInput['central_side'])}
+                  options={LINE_SIDES}
+                  columns={2}
+                />
+              </Field>
+            </div>
           )}
 
-          <Toggle checked={form.tee_used} onChange={(v) => set('tee_used', v)} label="TEE used" />
+          <SubHeading>Cardiopulmonary bypass</SubHeading>
+          <Toggle checked={form.cpb_used} onChange={(v) => set('cpb_used', v)} label="CPB used" />
+          {form.cpb_used && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="CPB duration (min)">
+                  <NumberInput
+                    value={form.cpb_duration_min}
+                    onChange={(v) => set('cpb_duration_min', v)}
+                    placeholder="e.g. 120"
+                  />
+                </Field>
+                <Field label="Cross-clamp time (min)">
+                  <NumberInput
+                    value={form.cross_clamp_time_min}
+                    onChange={(v) => set('cross_clamp_time_min', v)}
+                    placeholder="e.g. 62"
+                  />
+                </Field>
+              </div>
+              <Field label="Lowest temperature (°C)">
+                <NumberInput
+                  value={form.lowest_temperature_c}
+                  onChange={(v) => set('lowest_temperature_c', v)}
+                  placeholder="e.g. 28"
+                />
+              </Field>
+              <Toggle checked={form.dhca_used} onChange={(v) => set('dhca_used', v)} label="DHCA used" />
+              {form.dhca_used && (
+                <Field label="DHCA duration (min)">
+                  <NumberInput
+                    value={form.dhca_duration_min}
+                    onChange={(v) => set('dhca_duration_min', v)}
+                    placeholder="e.g. 20"
+                  />
+                </Field>
+              )}
+              <Toggle
+                checked={form.selective_cerebral_perfusion_used}
+                onChange={(v) => set('selective_cerebral_perfusion_used', v)}
+                label="Selective cerebral perfusion"
+              />
+              {form.selective_cerebral_perfusion_used && (
+                <Field label="Selective cerebral perfusion duration (min)">
+                  <NumberInput
+                    value={form.selective_cerebral_perfusion_duration_min}
+                    onChange={(v) => set('selective_cerebral_perfusion_duration_min', v)}
+                    placeholder="e.g. 15"
+                  />
+                </Field>
+              )}
+
+              <SubHeading>Separation from bypass</SubHeading>
+              <Field label="Difficulty">
+                <SegmentedGroup
+                  value={form.separation_difficulty}
+                  onChange={(v) => set('separation_difficulty', v as CaseInput['separation_difficulty'])}
+                  options={SEPARATION_DIFFICULTIES}
+                />
+              </Field>
+              <Field label="Notes (optional)">
+                <TextInput
+                  value={form.separation_notes}
+                  onChange={(v) => set('separation_notes', v)}
+                  placeholder="e.g. required 2nd bypass run for RV dysfunction"
+                />
+              </Field>
+            </>
+          )}
+
+          <SubHeading>Vasoactive medications</SubHeading>
+          <CheckboxGroup values={form.vasoactive_meds} onChange={(v) => set('vasoactive_meds', v)} options={VASOACTIVE_MEDS} />
         </SectionShell>
 
         {/* 3. Outcome */}
         <SectionShell step={3} title="Outcome" defaultOpen={false} formKey={formKey}>
-          <Field label="Complications">
-            <div className="flex flex-wrap gap-2">
-              {COMPLICATION_CHIPS.map((chip) => {
-                const active =
-                  chip === 'None' ? form.complications === 'None' : complicationChips.includes(chip);
-                return (
-                  <button
-                    key={chip}
-                    type="button"
-                    onClick={() => toggleComplicationChip(chip)}
-                    className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
-                      active ? 'bg-mint text-ink border-mint font-medium' : 'bg-surface text-paper border-line hover:border-line2'
-                    }`}
-                  >
-                    {chip}
-                  </button>
-                );
-              })}
-            </div>
-            {complicationChips.includes('Other') && (
-              <TextInput
-                value={otherComplicationText}
-                onChange={updateOtherComplication}
-                placeholder="Describe the complication"
+          <SubHeading>Postoperative</SubHeading>
+          <Field label="Destination">
+            <SegmentedGroup
+              value={form.destination}
+              onChange={(v) => set('destination', v as CaseInput['destination'])}
+              options={DESTINATIONS}
+              columns={2}
+            />
+          </Field>
+          <Field label="Extubation">
+            <SegmentedGroup
+              value={form.extubation_status}
+              onChange={(v) => set('extubation_status', v as CaseInput['extubation_status'])}
+              options={EXTUBATION_STATUSES}
+              columns={2}
+            />
+          </Field>
+          <Field label="ECMO">
+            <SegmentedGroup
+              value={form.ecmo_status}
+              onChange={(v) => set('ecmo_status', v as CaseInput['ecmo_status'])}
+              options={ECMO_STATUSES}
+            />
+          </Field>
+          {showEcmoTiming && (
+            <Field label="ECMO timing">
+              <SegmentedGroup
+                value={form.ecmo_timing}
+                onChange={(v) => set('ecmo_timing', v as CaseInput['ecmo_timing'])}
+                options={ECMO_TIMINGS}
+                columns={2}
               />
-            )}
+            </Field>
+          )}
+
+          <SubHeading>Complications</SubHeading>
+          <CheckboxGroup
+            values={form.complication_flags}
+            onChange={(v) => set('complication_flags', v)}
+            options={COMPLICATION_FLAGS}
+          />
+          {form.complication_flags.includes('Other') && (
+            <TextInput
+              value={complicationOther}
+              onChange={setComplicationOther}
+              placeholder="Describe the complication"
+            />
+          )}
+          <Field label="Additional notes (optional)">
+            <TextInput
+              value={form.complications}
+              onChange={(v) => set('complications', v)}
+              placeholder="Any other detail worth capturing"
+            />
           </Field>
 
-          <Field label="Learning point" hint={`${(form.learning_point ?? '').length}/200 — optional`}>
+          <SubHeading>Case reflection</SubHeading>
+          <Field label="Anesthetic challenges" hint={`${(form.anesthetic_challenges ?? '').length}/400`}>
             <textarea
-              value={form.learning_point ?? ''}
-              onChange={(e) => set('learning_point', e.target.value)}
-              maxLength={200}
-              rows={3}
+              value={form.anesthetic_challenges ?? ''}
+              onChange={(e) => set('anesthetic_challenges', e.target.value)}
+              maxLength={400}
+              rows={2}
+              placeholder="What was hardest about this case?"
+              className="w-full rounded-xl bg-surface border border-line px-4 py-3.5 text-paper placeholder:text-subtle focus:border-mint focus:ring-1 focus:ring-mint/40 outline-none resize-none transition-colors"
+            />
+          </Field>
+          <Field label="Key learning points" hint={`${(form.key_learning_points ?? '').length}/400`}>
+            <textarea
+              value={form.key_learning_points ?? ''}
+              onChange={(e) => set('key_learning_points', e.target.value)}
+              maxLength={400}
+              rows={2}
               placeholder="What will you remember from this case?"
+              className="w-full rounded-xl bg-surface border border-line px-4 py-3.5 text-paper placeholder:text-subtle focus:border-mint focus:ring-1 focus:ring-mint/40 outline-none resize-none transition-colors"
+            />
+          </Field>
+          <Field label="What would I do differently?" hint={`${(form.would_do_differently ?? '').length}/400`}>
+            <textarea
+              value={form.would_do_differently ?? ''}
+              onChange={(e) => set('would_do_differently', e.target.value)}
+              maxLength={400}
+              rows={2}
+              placeholder="Anything you'd change next time?"
               className="w-full rounded-xl bg-surface border border-line px-4 py-3.5 text-paper placeholder:text-subtle focus:border-mint focus:ring-1 focus:ring-mint/40 outline-none resize-none transition-colors"
             />
           </Field>

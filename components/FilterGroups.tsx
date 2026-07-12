@@ -1,6 +1,6 @@
 'use client';
 
-import { DIAGNOSES, PROCEDURES, AIRWAY_DIFFICULTIES } from '@/lib/constants';
+import { DIAGNOSES, PROCEDURES, AIRWAY_DIFFICULTIES, PHYSIOLOGIES } from '@/lib/constants';
 import type { CaseFilters } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -61,6 +61,24 @@ export default function FilterGroups({
       <div>
         <p className="field-label mb-2">Airway Difficulty</p>
         <div className="flex flex-wrap gap-1.5">{AIRWAY_DIFFICULTIES.map((a) => chip('airwayDifficulty', a, a))}</div>
+      </div>
+      <div>
+        <p className="field-label mb-2">Physiology</p>
+        <div className="flex flex-wrap gap-1.5">{PHYSIOLOGIES.map((p) => chip('physiology', p, p))}</div>
+      </div>
+      <div>
+        <p className="field-label mb-2">Cyanotic</p>
+        <div className="flex flex-wrap gap-1.5">
+          {chip('cyanotic', 'yes', 'Cyanotic')}
+          {chip('cyanotic', 'no', 'Acyanotic')}
+        </div>
+      </div>
+      <div>
+        <p className="field-label mb-2">ECMO</p>
+        <div className="flex flex-wrap gap-1.5">
+          {chip('ecmo', 'yes', 'ECMO used')}
+          {chip('ecmo', 'no', 'No ECMO')}
+        </div>
       </div>
       {activeCount > 0 && (
         <button

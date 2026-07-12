@@ -258,17 +258,71 @@ export function Toggle({
   );
 }
 
+export function CheckboxGroup<T extends string>({
+  values,
+  onChange,
+  options,
+  columns = 2,
+}: {
+  values: T[];
+  onChange: (v: T[]) => void;
+  options: readonly T[];
+  columns?: 1 | 2;
+}) {
+  function toggle(opt: T) {
+    onChange(values.includes(opt) ? values.filter((v) => v !== opt) : [...values, opt]);
+  }
+
+  return (
+    <div className={cn('grid gap-2', columns === 1 ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2')}>
+      {options.map((opt) => {
+        const checked = values.includes(opt);
+        return (
+          <button
+            key={opt}
+            type="button"
+            role="checkbox"
+            aria-checked={checked}
+            onClick={() => toggle(opt)}
+            className={cn(
+              'flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm text-left transition-colors duration-150',
+              checked ? 'bg-mint/10 border-mint text-mint font-medium' : 'bg-surface border-line text-paper hover:border-line2'
+            )}
+          >
+            <span
+              className={cn(
+                'flex h-4.5 w-4.5 h-[18px] w-[18px] shrink-0 items-center justify-center rounded border transition-colors',
+                checked ? 'bg-mint border-mint' : 'border-line2'
+              )}
+            >
+              {checked && (
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M5 13l4 4L19 7" stroke="#0A121C" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+            </span>
+            {opt}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function SegmentedGroup({
   value,
   onChange,
   options,
+  columns = 3,
 }: {
   value: string | null | undefined;
   onChange: (v: string) => void;
   options: readonly string[];
+  columns?: 2 | 3 | 4;
 }) {
+  const colClass = columns === 2 ? 'grid-cols-2' : columns === 4 ? 'grid-cols-4' : 'grid-cols-3';
   return (
-    <div className="grid grid-cols-3 gap-2">
+    <div className={cn('grid gap-2', colClass)}>
       {options.map((opt) => {
         const active = value === opt;
         return (

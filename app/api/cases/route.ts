@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { listCases, createCase } from '@/lib/db';
+import { validateCaseInput } from '@/lib/validation';
 import type { CaseInput, CaseFilters } from '@/lib/types';
 
 export async function GET(req: NextRequest) {
@@ -11,6 +12,9 @@ export async function GET(req: NextRequest) {
     cpb: (params.get('cpb') as CaseFilters['cpb']) ?? undefined,
     ageGroup: (params.get('ageGroup') as CaseFilters['ageGroup']) ?? undefined,
     airwayDifficulty: (params.get('airwayDifficulty') as CaseFilters['airwayDifficulty']) ?? undefined,
+    physiology: (params.get('physiology') as CaseFilters['physiology']) ?? undefined,
+    cyanotic: (params.get('cyanotic') as CaseFilters['cyanotic']) ?? undefined,
+    ecmo: (params.get('ecmo') as CaseFilters['ecmo']) ?? undefined,
   };
 
   try {
@@ -23,6 +27,12 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = (await req.json()) as CaseInput;
+
+  const validationError = validateCaseInput(body);
+  if (validationError) {
+    return NextResponse.json({ error: validationError }, { status: 400 });
+  }
+
   try {
     const created = await createCase(body);
     return NextResponse.json({ case: created }, { status: 201 });
